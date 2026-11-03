@@ -296,7 +296,7 @@ function contactPt(b,px,py,r,k,cd,mu,Kf,acc){
  const N=clamp(k*pen-cd*vn,0,2500),ft=clamp(-Kf*vt,-mu*N,mu*N),Fx=N*nx+ft*ny,Fy=N*ny-ft*nx;acc.fx+=Fx;acc.fy+=Fy;acc.tq+=rx*Fy-ry*Fx;return N}
 
 /* ===== v1.5 彈射 / 人物 / 泥濘 ===== */
-const CR=2.6;
+const CR=0.85;
 const rw=(b,p)=>{const cs=Math.cos(b.a),sn=Math.sin(b.a),y=p[1]-CO;return[b.x+p[0]*cs-y*sn,b.y+p[0]*sn+y*cs]};
 const winterAt=x=>(((Math.floor(x/SEG))%4)+4)%4===3;
 function mudAt(x){if(mode!=='sand'||WX.wet<.04||winterAt(x))return 0;return clamp((snoise(x*.35,77)-(.64-.3*WX.wet))*5,0,1)*WX.wet}
