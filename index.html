@@ -122,7 +122,8 @@ details{margin-top:12px;text-align:left}summary{cursor:pointer;font-weight:700;t
   <div id="sbWrap"><div class="ct">地形生成 GENERATION</div><div class="seg" id="lvSeg"><button data-l="1">1<br><small>平坦</small></button><button data-l="2">2<br><small>平緩</small></button><button data-l="3">3<br><small>標準</small></button><button data-l="4">4<br><small>起伏</small></button><button data-l="5">5<br><small>極端</small></button></div><p id="lvDesc" class="sm"></p></div>
   <p id="recLine" class="sm"></p>
  </div>
- <div class="card"><div class="ct">選擇車輛 BIKE</div>
+ <div class="card"><div class="ct">選擇車輛 VEHICLE</div>
+  <div class="seg" id="vehSeg" style="margin-bottom:6px"><button data-v="bike">🏍️ 摩托車</button><button data-v="skate">🛹 滑板</button></div>
   <div class="bsel"><button class="ar" id="bprev">◀</button><canvas id="bpv" width="260" height="140"></canvas><button class="ar" id="bnext">▶</button></div>
   <div id="bname"></div><div id="btag" class="sm"></div><div id="bspecs"></div>
  </div>
@@ -131,6 +132,7 @@ details{margin-top:12px;text-align:left}summary{cursor:pointer;font-weight:700;t
 <details><summary>操作說明 ／ 音量</summary>
 <p>春・夏・秋・冬無限地形，每季有獨特坡道與路面物理。<b>頭部撞地即遊戲結束</b>。</p>
 <p><kbd>↑/W</kbd> 油門　<kbd>↓/S</kbd> 煞車(倒車)　<kbd>←/A</kbd> 後仰　<kbd>→/D</kbd> 前傾<br><kbd>1</kbd>超人 <kbd>2</kbd>Nac Nac <kbd>3</kbd>懸崖手 <kbd>4</kbd>舉手　<kbd>R</kbd> 重來　<kbd>P</kbd>/<kbd>Esc</kbd> 暫停　<kbd>E</kbd> 彈射</p>
+<p><b>🛹 滑板模式：</b>Jump（小跳）／Ollie（高跳）／Kickflip／Shuvit。輕點 Kickflip／Shuvit = 一次，按住較久 = 雙重（Kickflip 兩圈、Shuvit 360）；板子轉完落地才算分。<b>在地面直接做 Kickflip／Shuvit，或落地時板子還沒轉完（板面朝下／橫著），都會摔車！</b>Shuvit 時車身會搖晃、更難平衡。鍵盤同按 <kbd>2</kbd>+<kbd>4</kbd> = Pop Shuvit。Wheelie 變成 Manual。腿部有避震，落地會自然蹲下。</p>
 <p><b>🪂 彈射 EJECT：</b>隨時（地面或空中）按輪盤上方的按鈕（或 <kbd>E</kbd>），人會飛離車子並保留動量，此時無法操控車子。用輪盤在空中做「極限空中特技」（翻滾、姿勢，分數更高）；人靠近車子會自動回到座位並繼續。若人撞到地面或前方地形，立即遊戲結束。</p>
 <p><b>雙向鎖定橢圓輪盤：</b><br>
 1️⃣ <b>先按中央鎖定傾斜：</b>在中央區域點擊並滑向外側做特技，傾斜保持不變。<br>
@@ -256,22 +258,29 @@ const PT=[
 {hip:[-.3,.42],sh:[.1,.95],head:[.15,1.18],hand:[.75,.72],foot:[-.75,.95]},
 {hip:[-.75,.38],sh:[-.3,.78],head:[-.2,1.02],hand:[.75,.72],foot:[.95,.9]},
 {hip:[-.3,.42],sh:[.0,.95],head:[.05,1.2],hand:[.35,1.85],foot:[.1,-.02]}];
-const TN=['超人 SUPERMAN','NAC NAC','懸崖手 CLIFFHANGER','舉手 HANDS UP'],TP=[[400,650],[300,450],[350,500],[250,350]];
+const TNB=['超人 SUPERMAN','NAC NAC','懸崖手 CLIFFHANGER','舉手 HANDS UP'],TPB=[[400,650],[300,450],[350,500],[250,350]],TNS=['JUMP','OLLIE','KICKFLIP','SHUVIT'],TPS=[[80,120],[300,450],[450,600],[400,550]],DT=[99,.9,.6,.45];
+let TN=TNB,TP=TPB,veh='bike';
+const tOn=(i,a)=>veh==='skate'?!!on('t'+i):a===i;
+function tname(i,h){if(veh!=='skate')return TN[i];const d=h>DT[i];return['JUMP',d?'HIGH OLLIE':'OLLIE',d?'DOUBLE KICKFLIP':'KICKFLIP',d?'360 SHUVIT':'SHUVIT'][i]}
+function skDone(t,n){if(!sess)return;const pop=t==='sv'&&T-bike.olT<1.6;
+ if(t==='kf'){sess.kf+=n;toast(n===1?'KICKFLIP':n===2?'DOUBLE KICKFLIP':'TRIPLE KICKFLIP','#7ef0ff')}
+ else{sess.sv+=n;if(pop)sess.pop=true;toast((pop?'POP ':'')+(n===1?'SHUVIT':n===2?'360 SHUVIT':(n*180)+' SHUVIT'),'#7ef0ff')}}
+const wlab=f=>veh==='skate'?(f?'🛹 NOSE MANUAL':'🛹 MANUAL'):(f?'🛞 前輪 WHEELIE':'🛞 WHEELIE');
 const cv=$('c');let ctx=cv.getContext('2d'),dpr=1,W=0,H=0;
 function rs(){dpr=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr}addEventListener('resize',rs);rs();
 const kb={},tc={},tpress=[0,0,0,0],on=n=>kb[n]||tc[n];
 let started=false,secT=[],secIdx=0,phase=0,finT=0,flyD=0,fin=false,cdT=0,cdN=0,lastRes=null;
-let bike,st='menu',T,airT,sess,chain,lastBank,stuntScore,crashT,flash,cam,parts=[],toastAcc,lastSeg=-1,best=0,camV=0;let rd=null,ejCD=0,rainTilt=0;
+let bike,st='menu',T,airT,sess,chain,lastBank,stuntScore,crashT,flash,cam,parts=[],toastAcc,lastSeg=-1,best=0,camV=0;let rd=null,ejCD=0,rainTilt=0,fl={rot:0,n:0};
 let rec={run:{s:0,d:0},cliff:[0,1,2,3].map(()=>({s:0,d:0,f:0})),sand:[0,1,2,3,4].map(()=>({s:0}))};
 try{const r=JSON.parse(localStorage.getItem('fsr_rec2')||'null');if(r){if(r.run)rec.run=Object.assign({s:0,d:0},r.run);if(Array.isArray(r.cliff))r.cliff.slice(0,4).forEach((c,i)=>rec.cliff[i]=Object.assign({s:0,d:0,f:0},c));if(Array.isArray(r.sand))r.sand.slice(0,5).forEach((c,i)=>rec.sand[i]=Object.assign({s:0},c))}}catch(e){}
 try{const ob=+localStorage.getItem('fsr_best')||0;if(ob>rec.run.s)rec.run.s=ob}catch(e){}
 const curRec=()=>mode==='run'?rec.run:mode==='sand'?rec.sand[SL-1]:rec.cliff[cliffSea];
-function saveSet(){try{localStorage.setItem('fsr_set',JSON.stringify({mode,cliffSea,bikeIdx,SL}))}catch(e){}}
-function loadSet(){try{const q=JSON.parse(localStorage.getItem('fsr_set')||'null');if(q){if(q.mode==='run'||q.mode==='cliff'||q.mode==='sand')mode=q.mode;cliffSea=clamp(q.cliffSea|0,0,3);SL=clamp((q.SL|0)||3,1,5);bikeIdx=clamp(q.bikeIdx|0,0,BIKES.length-1)}}catch(e){}}
+function saveSet(){try{localStorage.setItem('fsr_set',JSON.stringify({mode,cliffSea,bikeIdx,SL,veh}))}catch(e){}}
+function loadSet(){try{const q=JSON.parse(localStorage.getItem('fsr_set')||'null');if(q){if(q.mode==='run'||q.mode==='cliff'||q.mode==='sand')mode=q.mode;cliffSea=clamp(q.cliffSea|0,0,3);SL=clamp((q.SL|0)||3,1,5);bikeIdx=clamp(q.bikeIdx|0,0,BIKES.length-1);if(q.veh==='skate'||q.veh==='bike')veh=q.veh}}catch(e){}}
 let BK=BIKES[0];
 function applyBike(i){BK=BIKES[i];M=BK.M;I=BK.I;SMAX=BK.SMAX;TM=BK.TM;BRK=BK.BRK;TL=BK.TL;GR=BK.gr;SU=BK.su}
 
-function reset(){CC.clear();sbInit();started=false;secT=[];secIdx=0;phase=0;finT=0;flyD=0;fin=false;bike={x:1,y:terrain(1)+.96,a:0,vx:0,vy:0,w:0,w2:[{s:0,ang:0,cmp:0},{s:0,ang:0,cmp:0}],k:[0,0,0,0],gh:[0,0,0,0],gc:[-99,-99,-99,-99],wh:0,gT:0};T=0;airT=0;rd=null;ejCD=0;sess=null;chain=0;lastBank=-99;stuntScore=0;crashT=0;flash=0;parts=[];lastSeg=-1;cam={x:3,y:bike.y,S:60};$('toasts').innerHTML='';$('air').textContent='';}
+function reset(){CC.clear();sbInit();started=false;secT=[];secIdx=0;phase=0;finT=0;flyD=0;fin=false;bike={x:1,y:terrain(1)+.96,a:0,vx:0,vy:0,w:0,w2:[{s:0,ang:0,cmp:0},{s:0,ang:0,cmp:0}],k:[0,0,0,0],gh:[0,0,0,0],gc:[-99,-99,-99,-99],wh:0,wf:false,gT:0,sk:{kf:0,sv:0,cp:0,cv:0,pv:0},olT:-99,jt:0,kg:0,pj0:false,pj1:false};T=0;airT=0;rd=null;ejCD=0;fl={rot:0,n:0};sess=null;chain=0;lastBank=-99;stuntScore=0;crashT=0;flash=0;parts=[];lastSeg=-1;cam={x:3,y:bike.y,S:60};$('toasts').innerHTML='';$('air').textContent='';}
 function toast(t,c){if(AC){if(c==='#8dff7a')coin();else if(c==='#ffd166'||c==='#7ef0ff')ding()}const d=document.createElement('div');d.className='t';d.textContent=t;d.style.color=c||'#fff';$('toasts').appendChild(d);setTimeout(()=>d.remove(),1600)}
 function activeTrick(){let b=-1,t=0;for(let i=0;i<4;i++)if(on('t'+i)&&tpress[i]>=t){t=tpress[i];b=i}return b}
 function pose(k){const o={};let tot=k[0]+k[1]+k[2]+k[3];const sc=tot>1?1/tot:1;for(const f in PB){let x=PB[f][0],y=PB[f][1];for(let i=0;i<4;i++){x+=k[i]*sc*(PT[i][f][0]-PB[f][0]);y+=k[i]*sc*(PT[i][f][1]-PB[f][1])}o[f]=[x,y]}return o}
@@ -287,7 +296,7 @@ function cliffUpdate(dt,ground){if(mode!=='cliff')return;const b=bike;
  if(phase===0&&b.x>=HS)phase=1;
  if(phase===1&&b.x>=EDGE){phase=2;toast('🪂 起飛！做特技！','#7ef0ff')}
  if(phase===2&&ground&&!rd&&b.gT>.12&&b.x>EDGE+FW+2){phase=3;flyD=Math.max(0,b.x-EDGE);finT=0}
- if(phase===3){finT+=dt;if(finT>2.2)finishRun()}}
+ if(phase===3){finT+=dt;if(finT>2.2&&!rd)finishRun()}}
 const score=()=>Math.floor(Math.max(0,bike.x)*2)+stuntScore;
 
 function contactPt(b,px,py,r,k,cd,mu,Kf,acc){
@@ -301,12 +310,12 @@ const rw=(b,p)=>{const cs=Math.cos(b.a),sn=Math.sin(b.a),y=p[1]-CO;return[b.x+p[
 const winterAt=x=>(((Math.floor(x/SEG))%4)+4)%4===3;
 function mudAt(x){if(mode!=='sand'||WX.wet<.04||winterAt(x))return 0;return clamp((snoise(x*.35,77)-(.64-.3*WX.wet))*5,0,1)*WX.wet}
 const canEj=()=>st==='play'&&!rd&&ejCD<=0;
-function doEject(){if(!canEj())return;const b=bike,cs=Math.cos(b.a),sn=Math.sin(b.a),hp=rw(b,pose(b.k).hip),rx=hp[0]-b.x,ry=hp[1]-b.y,J=10;
- rd={x:hp[0],y:hp[1],vx:b.vx-b.w*ry-sn*J+cs*1.5,vy:b.vy+b.w*rx+cs*J+sn*1.5,a:b.a,w:b.w*.8,k:[0,0,0,0],sb:1,pull:false,pt:0,t:0,away:false,warn:false,dead:false,ok:false,rot:0,nf:0,hold:[0,0,0,0],said:[0,0,0,0]};
- sess=null;toast('🪂 彈射！','#7ef0ff')}
-function riderCrash(px,py){rd.dead=true;for(let i=0;i<14;i++)parts.push({x:px,y:py,vx:(Math.random()-.5)*7+rd.vx*.15,vy:1+Math.random()*4,l:.9,m:.9,s:.09+Math.random()*.1,c:1});crash('💥 彈射後墜地！')}
+function doEject(fall){if(fall){if(st!=='play'||rd)return}else if(!canEj())return;const b=bike,cs=Math.cos(b.a),sn=Math.sin(b.a),hp=rw(b,pose(b.k).hip),rx=hp[0]-b.x,ry=hp[1]-b.y,J=fall?3.5:10;
+ rd={x:hp[0],y:hp[1],vx:b.vx-b.w*ry-sn*J+cs*1.5,vy:b.vy+b.w*rx+cs*J+sn*1.5,a:b.a,w:fall?-6:b.w*.8,rag:!!fall,k:[0,0,0,0],sb:1,pull:false,pt:0,t:0,away:false,warn:false,dead:false,ok:false,rot:0,nf:0,hold:[0,0,0,0],said:[0,0,0,0]};
+ sess=null;fl.rot=0;fl.n=0;toast(fall?'🤕 板子沒在空中轉完 — 摔車！':'🪂 彈射！',fall?'#ff6b6b':'#7ef0ff')}
+function riderCrash(px,py){rd.dead=true;for(let i=0;i<14;i++)parts.push({x:px,y:py,vx:(Math.random()-.5)*7+rd.vx*.15,vy:1+Math.random()*4,l:.9,m:.9,s:.09+Math.random()*.1,c:1});crash(rd.rag?'🤕 摔車！':'💥 彈射後墜地！')}
 function remount(){const r=rd,b=bike;let fp=0;for(let k=1;k<=r.nf;k++)fp+=1500*k;let tp=0,ty=0;for(let i=0;i<4;i++)if(r.hold[i]>.35){tp+=Math.round((TP[i][0]+TP[i][1]*r.hold[i])*2);ty++}
- const ap=r.t>.8?Math.round((r.t-.6)*320):0,tot=ap+fp+tp;b.k=[0,0,0,0];rd=null;ejCD=.7;sess=null;toast('✅ 成功回到車上！','#8dff7a');
+ const ap=r.t>.8?Math.round((r.t-.6)*320):0,tot=ap+fp+tp;b.k=[0,0,0,0];rd=null;ejCD=.7;sess=null;fl.rot=0;fl.n=0;toast('✅ 成功回到車上！','#8dff7a');
  if(tot>0){const types=(ap?1:0)+(r.nf?1:0)+ty;if(T-lastBank>4.5)chain=0;chain++;const jm=1+.5*Math.max(0,types-1),cm=1+.5*(chain-1),v=Math.round(tot*jm*cm);stuntScore+=v;lastBank=T;toast('🪂 極限空中 EXTREME  +'+v+'  ×'+(jm*cm).toFixed(1)+(chain>1?'  連擊 '+chain:''),'#8dff7a')}}
 const RAIR={hip:[0,0],sh:[.14,.6],head:[.24,.86],hand:[.7,.95],foot:[-.4,-.6]};
 const RTR=[
@@ -316,9 +325,9 @@ const RTR=[
  {hip:[0,0],sh:[.02,.62],head:[.04,.9],hand:[.3,1.55],foot:[.3,-.6]}];
 function rpose(r){const o={},tot=r.k[0]+r.k[1]+r.k[2]+r.k[3],sc=tot>1?1/tot:1,sp=pose([0,0,0,0]),h=sp.hip;
  for(const f in RAIR){let x=RAIR[f][0],y=RAIR[f][1];for(let i=0;i<4;i++){x+=r.k[i]*sc*(RTR[i][f][0]-RAIR[f][0]);y+=r.k[i]*sc*(RTR[i][f][1]-RAIR[f][1])}
-  o[f]=[lerp(x,sp[f][0]-h[0],r.sb),lerp(y,sp[f][1]-h[1],r.sb)]}return o}
+  o[f]=[lerp(x,sp[f][0]-h[0],r.sb),lerp(y,sp[f][1]-h[1],r.sb)]}if(r.rag){const q=r.t*14;let n=0;for(const f in o){o[f][0]+=.28*Math.sin(q+n*1.7);o[f][1]+=.28*Math.cos(q*1.2+n*2.1);n++}}return o}
 function riderStep(dt){const r=rd,b=bike;if(r.dead)return;
- const live=st==='play',pl=r.pull,lean=live&&!pl?(on('lb')?1:0)-(on('lf')?1:0):0,act=live&&!pl?activeTrick():-1;
+ const live=st==='play',pl=r.pull,cc=live&&!pl&&!r.rag,lean=cc?(on('lb')?1:0)-(on('lf')?1:0):0,act=cc&&veh!=='skate'?activeTrick():-1;
  for(let i=0;i<4;i++)r.k[i]+=(((act===i)?1:0)-r.k[i])*Math.min(1,dt*10);
  r.sb=pl?Math.min(1,r.sb+dt*3.5):Math.max(0,r.sb-dt*6);
  if(pl){/* 引力牽引：彈簧式吸向座位，並對齊車身角度與速度 */
@@ -328,16 +337,17 @@ function riderStep(dt){const r=rd,b=bike;if(r.dead)return;
   if(live&&((Math.hypot(ex,ey)<.1&&r.sb>.9)||r.pt>1.4)){remount();return}
   return}
  r.w=clamp(r.w+(lean*(40+20*r.k[1])-.5*r.w)*dt,-12,12);
- const sp=Math.hypot(r.vx,r.vy);let as=0;if(r.t>.4&&r.vy<2){const dx=b.x-r.x;if(Math.abs(dx)<14)as=clamp(dx*2.2,-6,6)}
+ const sp=Math.hypot(r.vx,r.vy);let as=0;if(!r.rag&&r.t>.4&&r.vy<2){const dx=b.x-r.x;if(Math.abs(dx)<14)as=clamp(dx*2.2,-6,6)}
  r.vx+=(4.6*r.k[0]-4.6*r.k[2]-1.6*r.k[3]*Math.sign(r.vx)+as-.006*sp*r.vx)*dt;
  r.vy+=(-G*(1-.42*r.k[3])-.006*sp*r.vy)*dt;
  r.x+=r.vx*dt;r.y+=r.vy*dt;r.a+=r.w*dt;r.t+=dt;r.rot+=r.w*dt;
+ {const gy=terrain(r.x)+.05;if(r.y<gy){if(live){riderCrash(r.x,r.y);return}r.y=gy;r.vy=Math.max(0,r.vy);r.vx*=.9}}
  const nf=Math.floor(Math.abs(r.rot)/(TAU*.85));
  if(nf>r.nf){r.nf=nf;toast((nf>1?(nf===2?'雙重 ':nf===3?'三連 ':nf+'x '):'')+(r.rot>0?'後空翻':'前空翻')+' 🪂 EXTREME','#ffd166')}
  for(let i=0;i<4;i++)if(r.k[i]>.6){r.hold[i]+=dt;if(r.hold[i]>.35&&!r.said[i]){r.said[i]=1;toast(TN[i]+' 🪂','#7ef0ff')}}
  const s=rw(b,PB.hip),dd=Math.hypot(r.x-s[0],r.y-s[1]);
  if(dd>CR+.7)r.away=true;r.ok=r.away;
- if(live&&r.away&&r.t>.3&&dd<CR){r.pull=true;r.pt=0;return}
+ if(live&&!r.rag&&r.away&&r.t>.3&&dd<CR){r.pull=true;r.pt=0;return}
  if(live&&r.t>.3){const cs=Math.cos(r.a),sn=Math.sin(r.a),p0=rpose(r);
   for(const f of['head','sh','hip','foot','hand']){const qx=p0[f][0],qy=p0[f][1],px=r.x+qx*cs-qy*sn,py=r.y+qx*sn+qy*cs,m=slope(px),nl=Math.hypot(m,1);if((py-terrain(px))/nl<(f==='head'?.17:.1)){riderCrash(px,py);return}}}}
 
@@ -368,28 +378,40 @@ function step(dt){
  for(const p of BP){const px=b.x+p[0]*cs-p[1]*sn,py=b.y+p[0]*sn+p[1]*cs;if(contactPt(b,px,py,p[2],2500,170,.5,80,acc)>0)anyC=true}
  const ps=pose(b.k),hx=b.x+ps.head[0]*cs-(ps.head[1]+CO)*sn,hy=b.y+ps.head[0]*sn+(ps.head[1]+CO)*cs;
  if(live&&!rd){const m=slope(hx),nl=Math.hypot(m,1);if((hy-terrain(hx))/nl<.17)crash()}
- const gnd=anyW||anyC;let as=0;if(gnd&&!lean){const dA=wrap(b.a-Math.atan(slope(b.x)));if(Math.abs(dA)<1.3)as=-dA*22}
- acc.tq+=-.1*ew*Math.abs(ew)*(gnd?.35:1)+lean*TL*(gnd?1:1.45)+as-b.w*(gnd?1.8:.7);
+ const gnd=anyW||anyC;let as=0;if(gnd&&!lean&&!(veh==='skate'&&b.sk.sv>0)){const dA=wrap(b.a-Math.atan(slope(b.x)));if(Math.abs(dA)<1.3)as=-dA*22}
+ let wob=0;
+ if(veh==='skate'&&ctl){const j0=on('t0'),j1=on('t1'),o=b.sk;
+  if(b.jt>0)b.jt-=dt;
+  if(gnd&&((j0&&!b.pj0)||(j1&&!b.pj1))){const J=j1?6.2:4.2,m0=slope(b.x),n0=Math.hypot(m0,1);b.vx+=-m0/n0*J;b.vy+=J/n0;b.jt=.4;if(j1)b.olT=T}
+  b.pj0=j0;b.pj1=j1;
+  if(gnd&&b.jt<=0&&(o.kf>0||o.sv>0||on('t2')||on('t3'))){b.kg+=dt;if(b.kg>.05){b.kg=0;doEject(true)}}else b.kg=0;
+  if(o.sv>0)wob=(Math.sin(T*13)+.7*Math.sin(T*21+1.3)+.8*(Math.random()-.5))*TL*.4*(gnd?1:.6)}
+ acc.tq+=-.1*ew*Math.abs(ew)*(gnd?.35:1)+lean*TL*(gnd?1:1.45)+as+wob-b.w*(gnd?1.8:.7);
  b.vx+=acc.fx/M*dt;b.vy+=acc.fy/M*dt;b.w=clamp(b.w+acc.tq/I*dt,-12,12);b.x+=b.vx*dt;b.y+=b.vy*dt;b.a+=b.w*dt;
  const gt=terrain(b.x);if(b.y<gt-2.5){b.y=gt+1.2;b.vy=0}
  const ground=anyW||anyC;airT=ground?0:airT+dt;const act=activeTrick();if(ejCD>0)ejCD-=dt;if(rd)riderStep(dt);
- for(let i=0;i<4;i++)b.k[i]+=(((live&&!rd&&act===i)?1:0)-b.k[i])*Math.min(1,dt*10);
+ for(let i=0;i<4;i++)b.k[i]+=(((live&&!rd&&tOn(i,act))?1:0)-b.k[i])*Math.min(1,dt*10);
+ {const o=b.sk,c2=live&&!rd&&veh==='skate',kf=c2&&on('t2'),sv=c2&&on('t3');
+  if(kf)o.kf+=dt*16;else if(o.kf>0){const nx=Math.ceil(o.kf/TAU)*TAU,v=o.kf+dt*16;if(v>=nx){o.kf=0;skDone('kf',Math.round(nx/TAU))}else o.kf=v}
+  if(sv)o.sv+=dt*12;else if(o.sv>0){const nx=Math.ceil(o.sv/PI)*PI,v=o.sv+dt*12;if(v>=nx){o.sv=0;skDone('sv',Math.round(nx/PI))}else o.sv=v}}
+ {const o=b.sk,cn=b.w2[0].con||b.w2[1].con,tg=cn?clamp(((b.w2[0].cmp+b.w2[1].cmp)/2-.2)*1.6,-.1,.38):.08;o.cv+=clamp(b.vy-o.pv,-3,3)*.35+(60*(tg-o.cp)-9*o.cv)*dt;o.cp=clamp(o.cp+o.cv*dt,-.15,.4);o.pv=b.vy}
  if(live){if(!started&&(on('gas')||on('brk')||on('lb')||on('lf')||on('t0')||on('t1')||on('t2')||on('t3')))started=true;if(started){T+=dt;trackSec(dt);wxUpdate(dt)}
-  if(airT>.1&&!sess&&!rd)sess={t:0,rot:0,nf:0,hold:[0,0,0,0],said:[0,0,0,0]};
-  if(sess){sess.t+=dt;sess.rot+=b.w*dt;const nf=Math.floor(Math.abs(sess.rot)/(TAU*.85));
-   if(nf>sess.nf){sess.nf=nf;const bk=sess.rot>0;toast((nf>1?(nf===2?'雙重 ':nf===3?'三連 ':nf+'x '):'')+(bk?'後空翻 BACKFLIP':'前空翻 FRONTFLIP'),'#ffd166')}
-   for(let i=0;i<4;i++)if(b.k[i]>.6){sess.hold[i]+=dt;if(sess.hold[i]>.35&&!sess.said[i]){sess.said[i]=1;toast(TN[i],'#7ef0ff')}}}
-  if(ground)b.gT+=dt;else b.gT=0;if(b.gT>.12&&sess){land();sess=null}cliffUpdate(dt,ground);
-  const gsp=Math.hypot(b.vx,b.vy);for(let i=0;i<4;i++){if(ground&&b.k[i]>.6&&gsp>6)b.gh[i]+=dt;else if(b.gh[i]>0){if(b.gh[i]>.8){const cd=T-b.gc[i]<6?.25:1;gbank(Math.min(500,Math.round((TP[i][0]*.3+TP[i][1]*.3*b.gh[i])*cd)),TN[i].split(' ')[0]+'（地面）');b.gc[i]=T}b.gh[i]=0}}
-  const dW=wrap(b.a-Math.atan(slope(b.x))),isW=b.w2[0].con&&!b.w2[1].con&&dW>.25&&dW<1.45&&b.vx>4;
-  if(isW)b.wh+=dt;else if(b.wh>0){if(b.wh>.8)gbank(Math.round(b.wh*140+b.wh*b.wh*40),'🛞 WHEELIE '+b.wh.toFixed(1)+'s');b.wh=0}
+  if(!rd){fl.rot+=b.w*dt;const nf0=Math.floor(Math.abs(fl.rot)/(TAU*.85));if(nf0>fl.n){fl.n=nf0;toast((nf0>1?(nf0===2?'雙重 ':nf0===3?'三連 ':nf0+'x '):'')+(fl.rot>0?'後空翻 BACKFLIP':'前空翻 FRONTFLIP'),'#ffd166')}}
+  if((airT>.1||fl.n>0)&&!sess&&!rd)sess={kf:0,sv:0,pop:false,t:0,rot:0,nf:0,hold:[0,0,0,0],said:[0,0,0,0]};
+  if(sess){sess.t+=dt;sess.rot=fl.rot;sess.nf=fl.n;
+   for(let i=0;i<4;i++)if(veh!=='skate'&&b.k[i]>.6){sess.hold[i]+=dt;const h=sess.hold[i],lv=h>.35?(veh==='skate'&&h>DT[i]?2:1):0;if(lv>sess.said[i]){sess.said[i]=lv;toast((veh==='skate'&&(i===1||i===3)&&sess.hold[1]>.35&&sess.hold[3]>.35)?'POP '+tname(3,sess.hold[3]):tname(i,h),'#7ef0ff')}}}
+  if(ground)b.gT+=dt;else b.gT=0;if(b.gT>.12&&sess&&(Math.abs(b.w)<3.5||b.gT>.4)){land();sess=null;fl.rot=0;fl.n=0}else if(!sess&&b.gT>.3){fl.rot=0;fl.n=0}cliffUpdate(dt,ground);
+  const gsp=Math.hypot(b.vx,b.vy);for(let i=0;i<4;i++){if(veh!=='skate'&&ground&&b.k[i]>.6&&gsp>6)b.gh[i]+=dt;else if(b.gh[i]>0){if(b.gh[i]>.8){const cd=T-b.gc[i]<6?.25:1;gbank(Math.min(500,Math.round((TP[i][0]*.3+TP[i][1]*.3*b.gh[i])*cd)),TN[i].split(' ')[0]+'（地面）');b.gc[i]=T}b.gh[i]=0}}
+  const dW=wrap(b.a-Math.atan(slope(b.x))),rW=b.w2[0].con&&!b.w2[1].con&&dW>.25&&dW<1.45&&b.vx>4,fW=b.w2[1].con&&!b.w2[0].con&&dW<-.25&&dW>-1.45&&b.vx>4,isW=rW||fW;
+  if(isW){b.wh+=dt;b.wf=fW}else if(b.wh>0){if(b.wh>.8)gbank(Math.round(b.wh*140+b.wh*b.wh*40),wlab(b.wf)+' '+b.wh.toFixed(1)+'s');b.wh=0}
  }
 }
 function gbank(v,label){if(T-lastBank>4.5)chain=0;chain++;const cm=1+.5*(chain-1),r=Math.round(v*cm);stuntScore+=r;lastBank=T;toast(label+'  +'+r+(chain>1?'  ×'+cm.toFixed(1)+' 連擊 '+chain:''),'#8dff7a')}
 function land(){const b=bike,s=sess;s.nf=Math.max(s.nf,Math.floor(Math.abs(s.rot)/(TAU*.85)));if(s.t<.35&&!s.nf)return;
- const dA=wrap(b.a-Math.atan(slope(b.x))),good=Math.abs(dA)<.9,sloppy=b.k.some(v=>v>.4);
+ const dA=wrap(b.a-Math.atan(slope(b.x))),good=Math.abs(dA)<.9,sloppy=veh!=='skate'&&b.k.some(v=>v>.4);
  const ap=s.t>.7?Math.round((s.t-.5)*160):0;let fp=0;for(let k=1;k<=s.nf;k++)fp+=500*k;
- let tp=0,ty=0;for(let i=0;i<4;i++)if(s.hold[i]>.35){tp+=TP[i][0]+Math.round(TP[i][1]*s.hold[i]);ty++}
+ let tp=0,ty=0;for(let i=0;i<4;i++)if(veh!=='skate'&&s.hold[i]>.35){tp+=Math.round((TP[i][0]+TP[i][1]*s.hold[i])*(veh==='skate'&&s.hold[i]>DT[i]?1.6:1));ty++}
+ if(veh==='skate'){tp+=450*s.kf+400*s.sv+(s.pop?400:0);ty+=(s.kf>0?1:0)+(s.sv>0?1:0)}
  if(sloppy)tp=0,ty=0;
  const types=(ap?1:0)+(s.nf?1:0)+ty,tot=ap+fp+tp;if(!tot)return;
  if(!good){chain=0;toast('落地失敗 ✖ 分數作廢','#ff6b6b');return}
@@ -420,7 +442,7 @@ function drawRider(p,OR){
  const hx=p.head[0],hy=p.head[1];ctx.fillStyle='#f2f2f2';ctx.beginPath();ctx.arc(hx,hy,.21,0,TAU);ctx.fill();ctx.fillStyle=OR;ctx.beginPath();ctx.moveTo(hx,hy);ctx.arc(hx,hy,.21,1.2,2.1);ctx.fill();
  ctx.fillStyle='#1b1d22';ctx.beginPath();ctx.moveTo(hx+.12,hy+.09);ctx.lineTo(hx+.34,hy+.05);ctx.lineTo(hx+.31,hy-.02);ctx.lineTo(hx+.13,hy-.03);ctx.fill();
  ctx.fillStyle='#2a6fdb';ctx.beginPath();ctx.ellipse(hx+.12,hy-.02,.09,.06,0,0,TAU);ctx.fill();line([hx-.18,hy-.01],[hx+.05,hy-.01],.03,'#111');}
-function drawBike(b=bike,k=BK,nr=false){ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.a);ctx.translate(0,-CO);ctx.lineCap='round';ctx.lineJoin='round';
+function drawBike(b=bike,k=BK,nr=false){if(veh==='skate')return drawBoard(b,k,nr);ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.a);ctx.translate(0,-CO);ctx.lineCap='round';ctx.lineJoin='round';
  const wc=[0,1].map(i=>[AN[i][0],AN[i][1]-CO-(L-b.w2[i].cmp)]),OR=k.col,fa=wc[1];
  line([-.15,.1],wc[0],.12,'#33363d');line([-.3,.1],wc[0],.02,'#111');
  line([-.42,.44],[-.55,0],.07,k.acc);ctx.strokeStyle='#d8d8d8';ctx.lineWidth=.03;for(let i=1;i<8;i++){const t=i/8,x=lerp(-.42,-.55,t),y=lerp(.44,0,t);ctx.beginPath();ctx.moveTo(x-.06,y-.01);ctx.lineTo(x+.06,y+.015);ctx.stroke()}
@@ -439,6 +461,32 @@ function drawBike(b=bike,k=BK,nr=false){ctx.save();ctx.translate(b.x,b.y);ctx.ro
  line([-.85,.52],[-.22,.62],.14,'#15161a');line([.5,.74],[.62,.86],.07,'#15161a');line([.62,.86],[.82,.84],.07,'#15161a');line([.78,.84],[.88,.83],.1,'#000');
  if(!nr)drawRider(pose(b.k),OR);
  ctx.restore()}
+const SB={fF:[.55,0],fB:[-.5,0],hip:[0,.8],sh:[.05,1.35],head:[.1,1.62],hand:[.5,1]},
+ST=[{fF:[.5,.25],fB:[-.45,.2],hip:[0,.68],sh:[.05,1.28],head:[.1,1.55],hand:[.75,1.2]},
+{fF:[.6,.22],fB:[-.55,.05],hip:[-.1,.62],sh:[.05,1.18],head:[.12,1.45],hand:[.7,.95]},
+{fF:[.5,.2],fB:[-.45,.15],hip:[0,.68],sh:[.05,1.25],head:[.1,1.52],hand:[.6,.85]},
+{fF:[.5,.12],fB:[-.45,.12],hip:[0,.72],sh:[-.05,1.3],head:[0,1.55],hand:[.4,1.15]}];
+function skPose(k,yb,wb,cp){const tot=k[0]+k[1]+k[2]+k[3],sc=tot>1?1/tot:1,o={};for(const f in SB){let x=SB[f][0],y=SB[f][1];for(let i=0;i<4;i++){x+=k[i]*sc*(ST[i][f][0]-SB[f][0]);y+=k[i]*sc*(ST[i][f][1]-SB[f][1])}o[f]=[x,y+yb]}{const c=clamp(cp||0,-.15,.4);o.hip[1]-=c*.9;o.hip[0]-=c*.25;o.sh[1]-=c*.95;o.sh[0]+=c*.1;o.head[1]-=c*.95;o.head[0]+=c*.1;o.hand[1]-=c*.5}
+ if(wb){const t=performance.now()/1000;o.hand[0]+=.18*Math.sin(t*25);o.hand[1]+=.12*Math.cos(t*19);o.head[0]+=.05*Math.sin(t*21);o.sh[0]+=.05*Math.sin(t*23+1)}return o}
+function drawSkater(p,OR){const kb_=ik(p.hip,p.fB,.5,.52,1),kf_=ik(p.hip,p.fF,.5,.52,1);
+ line(p.hip,kb_,.17,'#142036');line(kb_,p.fB,.15,'#142036');line(p.fB,[p.fB[0]+.2,p.fB[1]],.1,'#e9e9e9');
+ line(p.hip,kf_,.18,'#1c2b4a');line(kf_,p.fF,.15,'#1c2b4a');line(p.fF,[p.fF[0]+.2,p.fF[1]],.11,'#e9e9e9');
+ const el=ik(p.sh,p.hand,.42,.45,-1);line(p.hip,p.sh,.3,'#d62828');line(p.sh,[p.head[0]-.02,p.head[1]-.14],.1,'#d0a07a');line(p.sh,el,.14,'#c41f1f');line(el,p.hand,.12,'#c41f1f');
+ const hx=p.head[0],hy=p.head[1];ctx.fillStyle='#f2f2f2';ctx.beginPath();ctx.arc(hx,hy,.21,0,TAU);ctx.fill();ctx.fillStyle=OR;ctx.beginPath();ctx.moveTo(hx,hy);ctx.arc(hx,hy,.21,1.2,2.1);ctx.fill();ctx.fillStyle='#1b1d22';ctx.fillRect(hx+.1,hy-.03,.2,.07)}
+function drawBoard(b=bike,k=BK,nr=false){const o=b.sk||{kf:0,sv:0},kk=b.k||[0,0,0,0];ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.a);ctx.translate(0,-CO);ctx.lineCap='round';ctx.lineJoin='round';
+ const wy=[0,1].map(i=>AN[i][1]-CO-(L-b.w2[i].cmp)-R+.19),yd=(wy[0]+wy[1])/2+.26,cK=Math.cos(o.kf),cY=Math.cos(o.sv),hl=1.05*Math.abs(cY),dc=cK>=0?'#2b2d33':k.col;
+ ctx.save();ctx.translate(0,yd);ctx.rotate(.28*kk[1]+.08*kk[0]);
+ for(let i=0;i<2;i++){const x=AN[i][0]*cY,y=(wy[i]-yd)*cK,bw=.17*Math.abs(cY);
+  line([x-bw,-.05*cK],[x+bw,-.05*cK],.05,'#6f757e');line([x,-.05*cK],[x,y],.07,'#aeb4bc');line([x-bw*.9,y],[x+bw*.9,y],.035,'#8b919a');
+  ctx.save();ctx.translate(x,y);ctx.rotate(-b.w2[i].ang);
+  ctx.fillStyle=k.acc;ctx.beginPath();ctx.arc(0,0,.19,0,TAU);ctx.fill();
+  ctx.strokeStyle='#0005';ctx.lineWidth=.025;ctx.beginPath();ctx.arc(0,0,.18,0,TAU);ctx.stroke();
+  ctx.fillStyle='#eceef2';ctx.beginPath();ctx.arc(0,0,.11,0,TAU);ctx.fill();
+  ctx.strokeStyle='#b4bac3';ctx.lineWidth=.018;ctx.beginPath();for(let q=0;q<3;q++){const a=q*TAU/3;ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*.1,Math.sin(a)*.1)}ctx.stroke();
+  ctx.fillStyle='#444';ctx.beginPath();ctx.arc(0,0,.03,0,TAU);ctx.fill();
+  ctx.fillStyle='#fff8';ctx.beginPath();ctx.arc(.14,0,.022,0,TAU);ctx.fill();ctx.restore()}
+ const th=Math.max(.06,.06*Math.abs(cK)+.2*Math.abs(Math.sin(o.kf)));line([-hl,0],[hl,0],th,dc);line([hl,0],[hl+.14*Math.abs(cY),.1*cK],.06,dc);line([-hl,0],[-hl-.14*Math.abs(cY),.1*cK],.06,dc);
+ ctx.restore();if(!nr)drawSkater(skPose(kk,yd+.06,o.sv>0,o.cp),k.col);ctx.restore()}
 function drawEjected(){const r=rd;
  ctx.save();ctx.translate(r.x,r.y);ctx.rotate(r.a);ctx.lineCap='round';ctx.lineJoin='round';drawRider(rpose(r),BK.col);ctx.restore();
  if(!r.dead){const q=rw(bike,PB.hip),d=Math.hypot(r.x-q[0],r.y-q[1]);if(d<14){ctx.save();ctx.strokeStyle=r.ok?'rgba(141,255,122,.95)':'rgba(255,255,255,.45)';ctx.lineWidth=.06;ctx.setLineDash([.18,.14]);ctx.beginPath();ctx.arc(q[0],q[1],CR,0,TAU);ctx.stroke();ctx.restore()}}}
@@ -497,7 +545,7 @@ function updSecs(){for(let i=0;i<4;i++){let txt,cls;
   else{const idx=secIdx-3+i;if(idx<0){txt='';cls=''}else{txt=SEAE[idx%4]+' '+fmtS(secT[idx]||0);cls=idx===secIdx?'cur':''}}
   const key=txt+'|'+cls;if(secCache[i]!==key){secCache[i]=key;secEls[i].textContent=txt;secEls[i].className='sc '+cls;secEls[i].style.display=txt?'':'none'}}}
 function hud(){const b=bike;{const w=mode==='sand'?wxText():'';if(w!==wxTxt){wxTxt=w;const e=$('wxh');e.textContent=w;e.style.display=w?'block':'none'}}$('tm').textContent=fmtT(T);updSecs();$('dist').textContent=Math.max(0,b.x|0);$('spd').textContent=Math.round(Math.hypot(b.vx,b.vy)*3.6);$('score').textContent=score();$('best').textContent=curRec().s?'(最高 '+curRec().s+')':'';
- let a='';if(sess&&st==='play'&&sess.t>.3){a='空中 '+sess.t.toFixed(1)+'s';if(sess.nf)a+='  翻滾×'+sess.nf;for(let i=0;i<4;i++)if(sess.hold[i]>.35)a+='  '+TN[i].split(' ')[0]}if(st==='play'){if(bike.wh>.3)a='🛞 WHEELIE '+bike.wh.toFixed(1)+'s';for(let i=0;i<4;i++)if(bike.gh[i]>.3)a+=(a?'  ':'')+TN[i].split(' ')[0]+' '+bike.gh[i].toFixed(1)+'s'}if(rd&&!rd.dead&&st==='play'){a='🪂 極限空中 '+rd.t.toFixed(1)+'s';if(rd.nf)a+='  翻滾×'+rd.nf;for(let i=0;i<4;i++)if(rd.hold[i]>.35)a+='  '+TN[i].split(' ')[0]}$('eject').classList.toggle('dis',!canEj());$('air').textContent=a;
+ let a='';if(sess&&st==='play'&&sess.t>.3){a='空中 '+sess.t.toFixed(1)+'s';if(sess.nf)a+='  翻滾×'+sess.nf;for(let i=0;i<4;i++)if(sess.hold[i]>.35)a+='  '+TN[i].split(' ')[0]}if(st==='play'){if(bike.wh>.3)a=wlab(bike.wf)+' '+bike.wh.toFixed(1)+'s';for(let i=0;i<4;i++)if(bike.gh[i]>.3)a+=(a?'  ':'')+TN[i].split(' ')[0]+' '+bike.gh[i].toFixed(1)+'s'}if(rd&&!rd.dead&&st==='play'){a='🪂 極限空中 '+rd.t.toFixed(1)+'s';if(rd.nf)a+='  翻滾×'+rd.nf;for(let i=0;i<4;i++)if(rd.hold[i]>.35)a+='  '+TN[i].split(' ')[0]}$('eject').classList.toggle('dis',!canEj());$('air').textContent=a;
  const left=4.5-(T-lastBank),bar=$('bar');if(chain>0&&left>0&&st==='play'){$('chain').textContent='連擊 ×'+(1+.5*(chain)).toFixed(1)+' 下次倍率';bar.style.opacity=1;$('bi').style.width=(left/4.5*100)+'%'}else{$('chain').textContent='';bar.style.opacity=0}
  const si=Math.floor(Math.max(0,b.x)/SEG);if((mode==='run'||mode==='sand')&&si!==lastSeg&&st==='play'){lastSeg=si;const S=SE[si%4];$('bn').textContent=S.n+'  '+S.en;$('bd').textContent=S.d;$('banner').style.opacity=1;setTimeout(()=>$('banner').style.opacity=0,3200)}}
 let lt=0,acc=0,TA=0;
@@ -527,13 +575,15 @@ function renderBike(){const k=BIKES[bikeIdx];$('bname').textContent=k.name;$('bt
  const real=ctx;ctx=pc.getContext('2d');try{ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,pc.width,pc.height);const S=50*dp;ctx.setTransform(S,0,0,-S,pc.width/2,.64*pc.height);
   ctx.fillStyle='#0005';ctx.beginPath();ctx.ellipse(0,-.93,1.4,.1,0,0,TAU);ctx.fill();
   drawBike({x:0,y:0,a:0,k:[0,0,0,0],w2:[{s:0,ang:.6,cmp:.12},{s:0,ang:0,cmp:.12}]},k)}finally{ctx=real}}
-function buildMenu(){document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('sel',b.dataset.m===mode));
+function setVeh(v){veh=v;TN=v==='skate'?TNS:TNB;TP=v==='skate'?TPS:TPB;const Ls=v==='skate'?['1 Jump','2 Ollie','3 Kickflip','4 Shuvit']:['1 超人','2 Nac Nac','3 懸崖手','4 舉手'];for(let i=0;i<4;i++)$('d'+i).textContent=Ls[i];}
+function buildMenu(){document.querySelectorAll('#vehSeg button').forEach(b=>b.classList.toggle('sel',b.dataset.v===veh));document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('sel',b.dataset.m===mode));
  document.querySelectorAll('#seaSeg button').forEach(b=>b.classList.toggle('sel',+b.dataset.s===cliffSea));
  $('seaWrap').style.display=mode==='cliff'?'block':'none';$('sbWrap').style.display=mode==='sand'?'block':'none';document.querySelectorAll('#lvSeg button').forEach(b=>b.classList.toggle('sel',+b.dataset.l===SL));$('lvDesc').textContent=LVD[SL-1];
  $('modeDesc').textContent=mode==='run'?'春夏秋冬無限地形，每 500 m 換季，頭部撞地即結束。':mode==='sand'?'與無盡賽道相同，但每次出發的地形都由演算法依季節特色隨機生成，並會自動下雨／下雪／颳強風，真的會影響車子。只記錄分數。':'先在平地加速、衝上山坡，從懸崖墜下並在空中做特技，安全著陸即完成。';
  $('seaDesc').textContent=SE[cliffSea].d;$('recLine').textContent=fmtRec();renderBike()}
 function previewReset(){if(st==='menu'||st==='over'){applyBike(bikeIdx);reset()}}
 document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;saveSet();previewReset();buildMenu()});
+document.querySelectorAll('#vehSeg button').forEach(b=>b.onclick=()=>{setVeh(b.dataset.v);saveSet();previewReset();buildMenu()});
 document.querySelectorAll('#seaSeg button').forEach(b=>b.onclick=()=>{cliffSea=+b.dataset.s;saveSet();previewReset();buildMenu()});
 document.querySelectorAll('#lvSeg button').forEach(b=>b.onclick=()=>{SL=+b.dataset.l;saveSet();previewReset();buildMenu()});
 $('bprev').onclick=()=>{bikeIdx=(bikeIdx+BIKES.length-1)%BIKES.length;saveSet();previewReset();buildMenu()};
@@ -615,70 +665,24 @@ addEventListener('pointerdown',()=>{if(AC&&AC.state==='suspended')AC.resume()},{
 const dial=$('dial'),knob=$('knob');
 let dpid=null, lockMode=null; // null, 'lean' (鎖定傾斜), 'trick' (鎖定特技)
 let lockedLean=0; // -1 (後仰), 1 (前傾)
-let lockedTrick=-1; // 0, 1, 2, 3
+let lockedSet=[];
 
 function dialSet(e){
- const r=dial.getBoundingClientRect();
- const ux=(e.clientX-r.left-r.width/2)/(r.width/2);
- const uy=(e.clientY-r.top-r.height/2)/(r.height/2);
- const rr=Math.hypot(ux,uy);
-
- const isCenter = rr <= 0.58;
- let curTrick = -1;
- if (!isCenter) {
-   curTrick = Math.abs(uy) > Math.abs(ux) ? (uy < 0 ? 0 : 1) : (ux < 0 ? 2 : 3);
- }
-
- // 判斷第一觸摸區域以決定鎖定模式
- if (lockMode === null) {
-   if (isCenter) {
-     lockMode = 'lean';
-     lockedLean = ux < -0.12 ? -1 : (ux > 0.12 ? 1 : 0);
-   } else {
-     lockMode = 'trick';
-     lockedTrick = curTrick;
-     if (lockedTrick !== -1 && !tc['t' + lockedTrick]) {
-       tpress[lockedTrick] = performance.now();
-     }
-   }
- }
-
- let activeLean = 0;
- let activeTrick = -1;
-
- if (lockMode === 'lean') {
-   // 鎖定傾斜：保持最初方向，滑向外圈選特技
-   if (lockedLean === 0 && isCenter) {
-     lockedLean = ux < -0.12 ? -1 : (ux > 0.12 ? 1 : 0);
-   }
-   activeLean = lockedLean;
-   activeTrick = curTrick;
- } else if (lockMode === 'trick') {
-   // 鎖定特技：保持選定的特技，滑動調整傾斜
-   activeTrick = lockedTrick;
-   // 只有手指在中央區才判定傾斜；在外圈(特技區)時傾斜為中立，避免舉手/懸崖手被誤判前傾/後仰
-   activeLean = isCenter ? (ux < -0.12 ? -1 : (ux > 0.12 ? 1 : 0)) : 0;
- }
-
- const lb = activeLean < 0, lf = activeLean > 0;
- tc.lb = lb; tc.lf = lf;
- $('cl').classList.toggle('on', lb);
- $('cr').classList.toggle('on', lf);
-
- for (let i = 0; i < 4; i++) {
-   const v = (i === activeTrick);
-   if (v && !tc['t' + i]) tpress[i] = performance.now();
-   tc['t' + i] = v;
-   $('d' + i).classList.toggle('on', v);
- }
-
- knob.style.display = 'block';
- knob.style.left = (50 + clamp(ux, -1, 1) * 50) + '%';
- knob.style.top = (50 + clamp(uy, -1, 1) * 50) + '%';
+ const r=dial.getBoundingClientRect(),ux=(e.clientX-r.left-r.width/2)/(r.width/2),uy=(e.clientY-r.top-r.height/2)/(r.height/2),rr=Math.hypot(ux,uy),isCenter=rr<=0.58;
+ let cur=[];
+ if(!isCenter){cur=[Math.abs(uy)>Math.abs(ux)?(uy<0?0:1):(ux<0?2:3)]}
+ if(lockMode===null){if(isCenter){lockMode='lean';lockedLean=ux<-.12?-1:(ux>.12?1:0)}else{lockMode='trick';lockedSet=cur}}
+ let aL=0,aT=[];
+ if(lockMode==='lean'){if(lockedLean===0&&isCenter)lockedLean=ux<-.12?-1:(ux>.12?1:0);aL=lockedLean;aT=cur}
+ else{aT=lockedSet;aL=isCenter?(ux<-.12?-1:(ux>.12?1:0)):0}
+ tc.lb=aL<0;tc.lf=aL>0;$('cl').classList.toggle('on',aL<0);$('cr').classList.toggle('on',aL>0);
+ for(let i=0;i<4;i++){const v=aT.includes(i);if(v&&!tc['t'+i])tpress[i]=performance.now();tc['t'+i]=v;$('d'+i).classList.toggle('on',v)}
+ 
+ knob.style.display='block';knob.style.left=(50+clamp(ux,-1,1)*50)+'%';knob.style.top=(50+clamp(uy,-1,1)*50)+'%';
 }
 
 function dialEnd(){
- dpid = null; lockMode = null; lockedLean = 0; lockedTrick = -1;
+ dpid = null; lockMode = null; lockedLean = 0; lockedSet = []; 
  tc.lb = tc.lf = false;
  for (let i = 0; i < 4; i++) {
    tc['t' + i] = false;
@@ -693,6 +697,6 @@ dial.addEventListener('pointerdown',e=>{e.preventDefault();dpid=e.pointerId;dial
 dial.addEventListener('pointermove',e=>{if(e.pointerId===dpid)dialSet(e)});
 ['pointerup','pointercancel'].forEach(ev=>dial.addEventListener(ev,e=>{if(e.pointerId===dpid)dialEnd()}));
 
-loadSet();applyBike(bikeIdx);reset();showOv(false);requestAnimationFrame(loop);
+loadSet();setVeh(veh);applyBike(bikeIdx);reset();showOv(false);requestAnimationFrame(loop);
 })();
 </script></body></html>
