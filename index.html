@@ -132,8 +132,8 @@ details{margin-top:12px;text-align:left}summary{cursor:pointer;font-weight:700;t
 <details><summary>操作說明 ／ 音量</summary>
 <p>春・夏・秋・冬無限地形，每季有獨特坡道與路面物理。<b>頭部撞地即遊戲結束</b>。</p>
 <p><kbd>↑/W</kbd> 油門　<kbd>↓/S</kbd> 煞車(倒車)　<kbd>←/A</kbd> 後仰　<kbd>→/D</kbd> 前傾<br><kbd>1</kbd>超人 <kbd>2</kbd>Nac Nac <kbd>3</kbd>懸崖手 <kbd>4</kbd>舉手　<kbd>R</kbd> 重來　<kbd>P</kbd>/<kbd>Esc</kbd> 暫停　<kbd>E</kbd> 彈射</p>
-<p><b>🛹 滑板模式：</b>Jump（小跳）／Ollie（高跳）／Kickflip／Shuvit。輕點 Kickflip／Shuvit = 一次，按住較久 = 雙重（Kickflip 兩圈、Shuvit 360）；板子轉完落地才算分。<b>在地面直接做 Kickflip／Shuvit，或落地時板子還沒轉完（板面朝下／橫著），都會摔車！</b>Shuvit 時車身會搖晃、更難平衡。鍵盤同按 <kbd>2</kbd>+<kbd>4</kbd> = Pop Shuvit。Wheelie 變成 Manual。腿部有避震，落地會自然蹲下。</p>
-<p><b>🪂 彈射 EJECT：</b>隨時（地面或空中）按輪盤上方的按鈕（或 <kbd>E</kbd>），人會飛離車子並保留動量，此時無法操控車子。用輪盤在空中做「極限空中特技」（翻滾、姿勢，分數更高）；人靠近車子會自動回到座位並繼續。若人撞到地面或前方地形，立即遊戲結束。</p>
+<p><b>🛹 滑板模式：</b>Jump（小跳）／Ollie（高跳）／Kickflip／Shuvit。同一次跳躍內連續做多次會累計：Kickflip 單／雙重／三重／四重，Shuvit 180／360／540／720（按住越久轉越多）；板子轉完落地才算分。<b>在地面直接做 Kickflip／Shuvit，或落地時板子還沒轉完（板面朝下／橫著），都會摔車！</b>Shuvit 時車身會搖晃、更難平衡。鍵盤同按 <kbd>2</kbd>+<kbd>4</kbd> = Pop Shuvit。Wheelie 變成 Manual。腿部有避震，落地會自然蹲下。</p>
+<p><b>🪂 彈射 EJECT：</b>隨時（地面或空中）按輪盤上方的按鈕（或 <kbd>E</kbd>），人會飛離車子並保留動量，此時無法操控車子。用輪盤在空中做「極限空中特技」（翻滾、姿勢，分數更高）；人靠近車子會自動回到座位並繼續。若人撞到地面或前方地形，立即遊戲結束。滑板模式：腳進入板上的綠色橢圓（板尾到板頭，寬:高 = 4:1）即以站姿落回板上。</p>
 <p><b>雙向鎖定橢圓輪盤：</b><br>
 1️⃣ <b>先按中央鎖定傾斜：</b>在中央區域點擊並滑向外側做特技，傾斜保持不變。<br>
 2️⃣ <b>先按外圈鎖定特技：</b>點擊外圈特技後，滑向中央左右切換後仰/前傾，特技持續不中斷。</p>
@@ -262,9 +262,11 @@ const TNB=['超人 SUPERMAN','NAC NAC','懸崖手 CLIFFHANGER','舉手 HANDS UP'
 let TN=TNB,TP=TPB,veh='bike';
 const tOn=(i,a)=>veh==='skate'?!!on('t'+i):a===i;
 function tname(i,h){if(veh!=='skate')return TN[i];const d=h>DT[i];return['JUMP',d?'HIGH OLLIE':'OLLIE',d?'DOUBLE KICKFLIP':'KICKFLIP',d?'360 SHUVIT':'SHUVIT'][i]}
+const KFN=['','KICKFLIP','DOUBLE KICKFLIP','TRIPLE KICKFLIP','QUAD KICKFLIP'],kfName=n=>n<1?'':n<5?KFN[n]:n+'× KICKFLIP',svName=n=>n<1?'':(n*180)+' SHUVIT';
 function skDone(t,n){if(!sess)return;const pop=t==='sv'&&T-bike.olT<1.6;
- if(t==='kf'){sess.kf+=n;toast(n===1?'KICKFLIP':n===2?'DOUBLE KICKFLIP':'TRIPLE KICKFLIP','#7ef0ff')}
- else{sess.sv+=n;if(pop)sess.pop=true;toast((pop?'POP ':'')+(n===1?'SHUVIT':n===2?'360 SHUVIT':(n*180)+' SHUVIT'),'#7ef0ff')}}
+ /* 同一次跳躍內累計：一次=單、兩次=雙重、三次=三重、四次=四重；Shuvit 每半圈 180° */
+ if(t==='kf'){sess.kf+=n;toast(kfName(sess.kf),'#7ef0ff')}
+ else{sess.sv+=n;if(pop)sess.pop=true;toast((pop?'POP ':'')+svName(sess.sv),'#7ef0ff')}}
 const wlab=f=>veh==='skate'?(f?'🛹 NOSE MANUAL':'🛹 MANUAL'):(f?'🛞 前輪 WHEELIE':'🛞 WHEELIE');
 const cv=$('c');let ctx=cv.getContext('2d'),dpr=1,W=0,H=0;
 function rs(){dpr=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr}addEventListener('resize',rs);rs();
@@ -310,9 +312,9 @@ const rw=(b,p)=>{const cs=Math.cos(b.a),sn=Math.sin(b.a),y=p[1]-CO;return[b.x+p[
 const winterAt=x=>(((Math.floor(x/SEG))%4)+4)%4===3;
 function mudAt(x){if(mode!=='sand'||WX.wet<.04||winterAt(x))return 0;return clamp((snoise(x*.35,77)-(.64-.3*WX.wet))*5,0,1)*WX.wet}
 const canEj=()=>st==='play'&&!rd&&ejCD<=0;
-function doEject(fall){if(fall){if(st!=='play'||rd)return}else if(!canEj())return;const b=bike,cs=Math.cos(b.a),sn=Math.sin(b.a),hp=rw(b,pose(b.k).hip),rx=hp[0]-b.x,ry=hp[1]-b.y,J=fall?3.5:10;
+function doEject(fall){if(fall){if(st!=='play'||rd)return}else if(!canEj())return;const b=bike,cs=Math.cos(b.a),sn=Math.sin(b.a),hp=veh==='skate'?rw(b,skPose(b.k,skYd(b)+.06,false,b.sk.cp).hip):rw(b,pose(b.k).hip),rx=hp[0]-b.x,ry=hp[1]-b.y,J=fall?3.5:10;
  rd={x:hp[0],y:hp[1],vx:b.vx-b.w*ry-sn*J+cs*1.5,vy:b.vy+b.w*rx+cs*J+sn*1.5,a:b.a,w:fall?-6:b.w*.8,rag:!!fall,k:[0,0,0,0],sb:1,pull:false,pt:0,t:0,away:false,warn:false,dead:false,ok:false,rot:0,nf:0,hold:[0,0,0,0],said:[0,0,0,0]};
- sess=null;fl.rot=0;fl.n=0;toast(fall?'🤕 板子沒在空中轉完 — 摔車！':'🪂 彈射！',fall?'#ff6b6b':'#7ef0ff')}
+ if(fall)ragInit(rd);sess=null;fl.rot=0;fl.n=0;toast(fall?'🤕 板子沒在空中轉完 — 摔車！':'🪂 彈射！',fall?'#ff6b6b':'#7ef0ff')}
 function riderCrash(px,py){rd.dead=true;for(let i=0;i<14;i++)parts.push({x:px,y:py,vx:(Math.random()-.5)*7+rd.vx*.15,vy:1+Math.random()*4,l:.9,m:.9,s:.09+Math.random()*.1,c:1});crash(rd.rag?'🤕 摔車！':'💥 彈射後墜地！')}
 function remount(){const r=rd,b=bike;let fp=0;for(let k=1;k<=r.nf;k++)fp+=1500*k;let tp=0,ty=0;for(let i=0;i<4;i++)if(r.hold[i]>.35){tp+=Math.round((TP[i][0]+TP[i][1]*r.hold[i])*2);ty++}
  const ap=r.t>.8?Math.round((r.t-.6)*320):0,tot=ap+fp+tp;b.k=[0,0,0,0];rd=null;ejCD=.7;sess=null;fl.rot=0;fl.n=0;toast('✅ 成功回到車上！','#8dff7a');
@@ -323,15 +325,54 @@ const RTR=[
  {hip:[0,0],sh:[.1,.6],head:[.12,.86],hand:[.5,.3],foot:[-.9,.5]},
  {hip:[0,0],sh:[.05,.6],head:[.05,.85],hand:[.4,1.35],foot:[-.1,-.72]},
  {hip:[0,0],sh:[.02,.62],head:[.04,.9],hand:[.3,1.55],foot:[.3,-.6]}];
-function rpose(r){const o={},tot=r.k[0]+r.k[1]+r.k[2]+r.k[3],sc=tot>1?1/tot:1,sp=pose([0,0,0,0]),h=sp.hip;
+function rpose(r){const o={},tot=r.k[0]+r.k[1]+r.k[2]+r.k[3],sc=tot>1?1/tot:1,sk=veh==='skate',sp=sk?skPose([0,0,0,0],skYd(bike)+.06,false,bike.sk.cp):pose([0,0,0,0]),h=sp.hip;
  for(const f in RAIR){let x=RAIR[f][0],y=RAIR[f][1];for(let i=0;i<4;i++){x+=r.k[i]*sc*(RTR[i][f][0]-RAIR[f][0]);y+=r.k[i]*sc*(RTR[i][f][1]-RAIR[f][1])}
-  o[f]=[lerp(x,sp[f][0]-h[0],r.sb),lerp(y,sp[f][1]-h[1],r.sb)]}if(r.rag){const q=r.t*14;let n=0;for(const f in o){o[f][0]+=.28*Math.sin(q+n*1.7);o[f][1]+=.28*Math.cos(q*1.2+n*2.1);n++}}return o}
-function riderStep(dt){const r=rd,b=bike;if(r.dead)return;
+  {const tg=sk&&f==='foot'?sp.fB:sp[f];o[f]=[lerp(x,tg[0]-h[0],r.sb),lerp(y,tg[1]-h[1],r.sb)];if(sk&&f==='foot')o.fF=[lerp(x+.6,sp.fF[0]-h[0],r.sb),lerp(y+.12,sp.fF[1]-h[1],r.sb)]}}if(sk)o.fB=o.foot;if(r.rag){const q=r.t*14;let n=0;for(const f in o){o[f][0]+=.28*Math.sin(q+n*1.7);o[f][1]+=.28*Math.cos(q*1.2+n*2.1);n++}}return o}
+/* ===== v1.9 滑板：站姿座位 / 4:1 著陸橢圓 / 布娃娃 ===== */
+const skYd=b=>{const wy=[0,1].map(i=>AN[i][1]-CO-(L-b.w2[i].cmp)-R+.19);return(wy[0]+wy[1])/2+.26};
+const seat=b=>veh==='skate'?rw(b,skPose([0,0,0,0],skYd(b)+.06,false,b.sk.cp).hip):rw(b,PB.hip);
+/* 著陸橢圓：板尾到板頭（長 2.4），寬:高 = 4:1（高 0.6），跟著板子轉 */
+function ovalOf(b){const c=rw(b,[0,skYd(b)+.3]);return{x:c[0],y:c[1],rx:1.2,ry:.3}}
+function feetInOval(r){const b=bike,ov=ovalOf(b),p=rpose(r),cs=Math.cos(r.a),sn=Math.sin(r.a),qx=(p.fB[0]+p.fF[0])/2,qy=(p.fB[1]+p.fF[1])/2,
+ wx=r.x+qx*cs-qy*sn,wy=r.y+qx*sn+qy*cs,dx=wx-ov.x,dy=wy-ov.y,cb=Math.cos(b.a),sb=Math.sin(b.a),u=dx*cb+dy*sb,v=-dx*sb+dy*cb;return(u/ov.rx)**2+(v/ov.ry)**2<1}
+/* 布娃娃：Verlet 質點 + 距離約束（頭、肩、髖、兩膝、兩腳、兩肘、兩手） */
+const RGI=[.5,.35,.3,1,1.4,1,1.4,1.5,2,1.5,2],RGR=[.2,.12,.14,.1,.09,.1,.09,.08,.07,.08,.07];
+function ragInit(r){const b=bike,p=skPose(b.k,skYd(b)+.06,false,b.sk.cp),kB=ik(p.hip,p.fB,.5,.52,1),kF=ik(p.hip,p.fF,.5,.52,1),hB=[p.hand[0]-.3,p.hand[1]-.25],
+ eA=ik(p.sh,p.hand,.42,.45,-1),eB=ik(p.sh,hB,.42,.45,-1),loc=[p.head,p.sh,p.hip,kB,p.fB,kF,p.fF,eA,p.hand,eB,hB],dt=1/240;
+ const P=loc.map(q=>{const w=rw(b,q);return{x:w[0],y:w[1],px:0,py:0,c:0,nx:0,ny:1,ux:0,uy:0}});const hp=P[2],om=-4.5;
+ for(const q of P){const rx=q.x-b.x,ry=q.y-b.y,vx=b.vx-b.w*ry-om*(q.y-hp.y)+(Math.random()-.5)*.8,vy=b.vy+b.w*rx+om*(q.x-hp.x)+1.2+(Math.random()-.5)*.8;q.px=q.x-vx*dt;q.py=q.y-vy*dt}
+ const E=[[0,1,1],[1,2,1],[2,3,1],[3,4,1],[2,5,1],[5,6,1],[1,7,1],[7,8,1],[1,9,1],[9,10,1],[0,2,.1]];
+ r.rg={P,C:E.map(e=>[e[0],e[1],e[2],Math.max(.05,Math.hypot(P[e[1]].x-P[e[0]].x,P[e[1]].y-P[e[0]].y))]),gt:0}}
+function ragStep(dt){const r=rd,P=r.rg.P,C=r.rg.C;r.t+=dt;
+ for(const q of P){q.c=0;const vx=(q.x-q.px)*.9996,vy=(q.y-q.py)*.9996;q.ux=vx;q.uy=vy;q.px=q.x;q.py=q.y;q.x+=vx;q.y+=vy-G*dt*dt}
+ for(let it=0;it<6;it++){
+  for(const c of C){const a=P[c[0]],b=P[c[1]],ia=RGI[c[0]],ib=RGI[c[1]],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1e-6,k=(d-c[3])/d*c[2]/(ia+ib);a.x+=dx*k*ia;a.y+=dy*k*ia;b.x-=dx*k*ib;b.y-=dy*k*ib}
+  /* 膝蓋只能往前彎（不會反折） */
+  for(const l of[[2,3,4],[2,5,6]]){const H=P[l[0]],K=P[l[1]],F=P[l[2]],ux=F.x-H.x,uy=F.y-H.y;if(ux*ux+uy*uy>.09&&ux*(K.y-H.y)-uy*(K.x-H.x)<0){const L2=ux*ux+uy*uy,t=((K.x-H.x)*ux+(K.y-H.y)*uy)/L2,dx=2*(H.x+ux*t)-K.x-K.x,dy=2*(H.y+uy*t)-K.y-K.y;K.x+=dx*.3;K.y+=dy*.3;K.px+=dx*.3;K.py+=dy*.3}}
+  for(let i=0;i<P.length;i++){const q=P[i],m=slope(q.x),nl=Math.hypot(m,1),nx=-m/nl,ny=1/nl,pen=RGR[i]-(q.y-terrain(q.x))*ny;if(pen>0){q.x+=nx*pen;q.y+=ny*pen;q.c=1;q.nx=nx;q.ny=ny}}}
+ /* 接觸後的速度：反彈 + 庫侖摩擦 */
+ for(const q of P){if(!q.c)continue;const vx=q.x-q.px,vy=q.y-q.py,vn0=q.ux*q.nx+q.uy*q.ny,mu=winterAt(q.x)?.4:.7;
+  let tx=vx-(vx*q.nx+vy*q.ny)*q.nx,ty=vy-(vx*q.nx+vy*q.ny)*q.ny;const tm=Math.hypot(tx,ty),fr=mu*(G*dt*dt+Math.max(0,-vn0));
+  if(tm>fr){tx*=1-fr/tm;ty*=1-fr/tm}else{tx=0;ty=0}
+  const bn=vn0<-.006?-.22*vn0:0;q.px=q.x-(tx+bn*q.nx);q.py=q.y-(ty+bn*q.ny)}
+ const hp=P[2];r.x=hp.x;r.y=hp.y;r.vx=(hp.x-hp.px)/dt;r.vy=(hp.y-hp.py)/dt;
+ if(P.some(q=>q.c))r.rg.gt+=dt;
+ if(!r.dead&&(r.rg.gt>.9||r.t>3.2))riderCrash(hp.x,hp.y)}
+function drawRagdoll(r){const P=r.rg.P,g=i=>[P[i].x,P[i].y],ln=(a,b,w,c)=>line(g(a),g(b),w,c),
+ shoe=(k,f,c)=>{const dx=P[f].x-P[k].x,dy=P[f].y-P[k].y,l=Math.hypot(dx,dy)||1;line(g(f),[P[f].x-dy/l*.2,P[f].y+dx/l*.2],.11,c)};
+ ln(1,9,.13,'#9d1818');ln(9,10,.11,'#9d1818');
+ ln(2,3,.17,'#142036');ln(3,4,.15,'#142036');shoe(3,4,'#cfcfcf');
+ ln(2,5,.18,'#1c2b4a');ln(5,6,.15,'#1c2b4a');shoe(5,6,'#e9e9e9');
+ ln(2,1,.3,'#d62828');ln(1,0,.1,'#d0a07a');
+ ln(1,7,.14,'#c41f1f');ln(7,8,.12,'#c41f1f');ctx.fillStyle='#111';for(const i of[8,10]){ctx.beginPath();ctx.arc(P[i].x,P[i].y,.07,0,TAU);ctx.fill()}
+ const H=P[0],S=P[1],ux=H.x-S.x,uy=H.y-S.y;ctx.save();ctx.translate(H.x,H.y);ctx.rotate(Math.atan2(-ux,uy));
+ ctx.fillStyle='#f2f2f2';ctx.beginPath();ctx.arc(0,0,.21,0,TAU);ctx.fill();ctx.fillStyle=BK.col;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,.21,1.2,2.1);ctx.fill();ctx.fillStyle='#1b1d22';ctx.fillRect(.1,-.03,.2,.07);ctx.restore()}
+function riderStep(dt){const r=rd,b=bike;if(r.rag&&r.rg){ragStep(dt);return}if(r.dead)return;
  const live=st==='play',pl=r.pull,cc=live&&!pl&&!r.rag,lean=cc?(on('lb')?1:0)-(on('lf')?1:0):0,act=cc&&veh!=='skate'?activeTrick():-1;
  for(let i=0;i<4;i++)r.k[i]+=(((act===i)?1:0)-r.k[i])*Math.min(1,dt*10);
  r.sb=pl?Math.min(1,r.sb+dt*3.5):Math.max(0,r.sb-dt*6);
  if(pl){/* 引力牽引：彈簧式吸向座位，並對齊車身角度與速度 */
-  const s0=rw(b,PB.hip),ex=s0[0]-r.x,ey=s0[1]-r.y;r.pt+=dt;
+  const s0=seat(b),ex=s0[0]-r.x,ey=s0[1]-r.y;r.pt+=dt;
   r.vx+=(70*ex+16.8*(b.vx-r.vx))*dt;r.vy+=(70*ey+16.8*(b.vy-r.vy))*dt;
   r.x+=r.vx*dt;r.y+=r.vy*dt;r.a+=wrap(b.a-r.a)*Math.min(1,dt*7);r.w=b.w;r.t+=dt;
   if(live&&((Math.hypot(ex,ey)<.1&&r.sb>.9)||r.pt>1.4)){remount();return}
@@ -345,9 +386,9 @@ function riderStep(dt){const r=rd,b=bike;if(r.dead)return;
  const nf=Math.floor(Math.abs(r.rot)/(TAU*.85));
  if(nf>r.nf){r.nf=nf;toast((nf>1?(nf===2?'雙重 ':nf===3?'三連 ':nf+'x '):'')+(r.rot>0?'後空翻':'前空翻')+' 🪂 EXTREME','#ffd166')}
  for(let i=0;i<4;i++)if(r.k[i]>.6){r.hold[i]+=dt;if(r.hold[i]>.35&&!r.said[i]){r.said[i]=1;toast(TN[i]+' 🪂','#7ef0ff')}}
- const s=rw(b,PB.hip),dd=Math.hypot(r.x-s[0],r.y-s[1]);
+ const s=seat(b),dd=Math.hypot(r.x-s[0],r.y-s[1]),inL=veh==='skate'?feetInOval(r):dd<CR;
  if(dd>CR+.7)r.away=true;r.ok=r.away;
- if(live&&!r.rag&&r.away&&r.t>.3&&dd<CR){r.pull=true;r.pt=0;return}
+ if(live&&!r.rag&&r.away&&r.t>.3&&inL){r.pull=true;r.pt=0;return}
  if(live&&r.t>.3){const cs=Math.cos(r.a),sn=Math.sin(r.a),p0=rpose(r);
   for(const f of['head','sh','hip','foot','hand']){const qx=p0[f][0],qy=p0[f][1],px=r.x+qx*cs-qy*sn,py=r.y+qx*sn+qy*cs,m=slope(px),nl=Math.hypot(m,1);if((py-terrain(px))/nl<(f==='head'?.17:.1)){riderCrash(px,py);return}}}}
 
@@ -411,7 +452,7 @@ function land(){const b=bike,s=sess;s.nf=Math.max(s.nf,Math.floor(Math.abs(s.rot
  const dA=wrap(b.a-Math.atan(slope(b.x))),good=Math.abs(dA)<.9,sloppy=veh!=='skate'&&b.k.some(v=>v>.4);
  const ap=s.t>.7?Math.round((s.t-.5)*160):0;let fp=0;for(let k=1;k<=s.nf;k++)fp+=500*k;
  let tp=0,ty=0;for(let i=0;i<4;i++)if(veh!=='skate'&&s.hold[i]>.35){tp+=Math.round((TP[i][0]+TP[i][1]*s.hold[i])*(veh==='skate'&&s.hold[i]>DT[i]?1.6:1));ty++}
- if(veh==='skate'){tp+=450*s.kf+400*s.sv+(s.pop?400:0);ty+=(s.kf>0?1:0)+(s.sv>0?1:0)}
+ if(veh==='skate'){tp+=Math.round(450*s.kf*(1+.3*Math.max(0,s.kf-1))+400*s.sv*(1+.3*Math.max(0,s.sv-1))+(s.pop?400:0));ty+=(s.kf>0?1:0)+(s.sv>0?1:0)}
  if(sloppy)tp=0,ty=0;
  const types=(ap?1:0)+(s.nf?1:0)+ty,tot=ap+fp+tp;if(!tot)return;
  if(!good){chain=0;toast('落地失敗 ✖ 分數作廢','#ff6b6b');return}
@@ -488,8 +529,11 @@ function drawBoard(b=bike,k=BK,nr=false){const o=b.sk||{kf:0,sv:0},kk=b.k||[0,0,
  const th=Math.max(.06,.06*Math.abs(cK)+.2*Math.abs(Math.sin(o.kf)));line([-hl,0],[hl,0],th,dc);line([hl,0],[hl+.14*Math.abs(cY),.1*cK],.06,dc);line([-hl,0],[-hl-.14*Math.abs(cY),.1*cK],.06,dc);
  ctx.restore();if(!nr)drawSkater(skPose(kk,yd+.06,o.sv>0,o.cp),k.col);ctx.restore()}
 function drawEjected(){const r=rd;
- ctx.save();ctx.translate(r.x,r.y);ctx.rotate(r.a);ctx.lineCap='round';ctx.lineJoin='round';drawRider(rpose(r),BK.col);ctx.restore();
- if(!r.dead){const q=rw(bike,PB.hip),d=Math.hypot(r.x-q[0],r.y-q[1]);if(d<14){ctx.save();ctx.strokeStyle=r.ok?'rgba(141,255,122,.95)':'rgba(255,255,255,.45)';ctx.lineWidth=.06;ctx.setLineDash([.18,.14]);ctx.beginPath();ctx.arc(q[0],q[1],CR,0,TAU);ctx.stroke();ctx.restore()}}}
+ if(r.rag&&r.rg){ctx.save();ctx.lineCap='round';ctx.lineJoin='round';drawRagdoll(r);ctx.restore();return}
+ ctx.save();ctx.translate(r.x,r.y);ctx.rotate(r.a);ctx.lineCap='round';ctx.lineJoin='round';if(veh==='skate')drawSkater(rpose(r),BK.col);else drawRider(rpose(r),BK.col);ctx.restore();
+ if(!r.dead){const q=seat(bike),d=Math.hypot(r.x-q[0],r.y-q[1]);if(d<14){ctx.save();ctx.strokeStyle=r.ok?'rgba(141,255,122,.95)':'rgba(255,255,255,.45)';ctx.lineWidth=.06;ctx.setLineDash([.18,.14]);ctx.beginPath();
+  if(veh==='skate'){const ov=ovalOf(bike);ctx.ellipse(ov.x,ov.y,ov.rx,ov.ry,bike.a,0,TAU);if(r.ok){ctx.fillStyle='rgba(141,255,122,.14)';ctx.fill()}}else ctx.arc(q[0],q[1],CR,0,TAU);
+  ctx.stroke();ctx.restore()}}}
 /* ===== 懸崖看板 ===== */
 function sign(x,txt,col,w){const y=terrain(x),h=2.4;ctx.fillStyle='#4a4038';ctx.fillRect(x-.07,y-.3,.14,h+.3);ctx.fillStyle=col;ctx.fillRect(x-w/2,y+h-.9,w,1.1);ctx.save();ctx.translate(x,y+h-.35);ctx.scale(.01,-.01);ctx.fillStyle='#fff';ctx.font='bold 52px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(txt,0,0);ctx.restore()}
 const SIGNS=[[12,'GAS ▶▶','#2a9d8f',3.4],[60,'60m','#556',2.4],[110,'110m','#556',2.6],[HS-6,'⛰ 上坡','#e9a03b',3.4],[EDGE-60,'60m','#e63946',2.4],[EDGE-25,'⚠ 懸崖','#e63946',3.4],[EDGE+FW+40,'🛬 著陸區','#2a9d8f',4]];
@@ -545,7 +589,8 @@ function updSecs(){for(let i=0;i<4;i++){let txt,cls;
   else{const idx=secIdx-3+i;if(idx<0){txt='';cls=''}else{txt=SEAE[idx%4]+' '+fmtS(secT[idx]||0);cls=idx===secIdx?'cur':''}}
   const key=txt+'|'+cls;if(secCache[i]!==key){secCache[i]=key;secEls[i].textContent=txt;secEls[i].className='sc '+cls;secEls[i].style.display=txt?'':'none'}}}
 function hud(){const b=bike;{const w=mode==='sand'?wxText():'';if(w!==wxTxt){wxTxt=w;const e=$('wxh');e.textContent=w;e.style.display=w?'block':'none'}}$('tm').textContent=fmtT(T);updSecs();$('dist').textContent=Math.max(0,b.x|0);$('spd').textContent=Math.round(Math.hypot(b.vx,b.vy)*3.6);$('score').textContent=score();$('best').textContent=curRec().s?'(最高 '+curRec().s+')':'';
- let a='';if(sess&&st==='play'&&sess.t>.3){a='空中 '+sess.t.toFixed(1)+'s';if(sess.nf)a+='  翻滾×'+sess.nf;for(let i=0;i<4;i++)if(sess.hold[i]>.35)a+='  '+TN[i].split(' ')[0]}if(st==='play'){if(bike.wh>.3)a=wlab(bike.wf)+' '+bike.wh.toFixed(1)+'s';for(let i=0;i<4;i++)if(bike.gh[i]>.3)a+=(a?'  ':'')+TN[i].split(' ')[0]+' '+bike.gh[i].toFixed(1)+'s'}if(rd&&!rd.dead&&st==='play'){a='🪂 極限空中 '+rd.t.toFixed(1)+'s';if(rd.nf)a+='  翻滾×'+rd.nf;for(let i=0;i<4;i++)if(rd.hold[i]>.35)a+='  '+TN[i].split(' ')[0]}$('eject').classList.toggle('dis',!canEj());$('air').textContent=a;
+ let a='';if(sess&&st==='play'&&sess.t>.3){a='空中 '+sess.t.toFixed(1)+'s';if(sess.nf)a+='  翻滾×'+sess.nf;for(let i=0;i<4;i++)if(sess.hold[i]>.35)a+='  '+TN[i].split(' ')[0]}if(st==='play'){if(bike.wh>.3)a=wlab(bike.wf)+' '+bike.wh.toFixed(1)+'s';for(let i=0;i<4;i++)if(bike.gh[i]>.3)a+=(a?'  ':'')+TN[i].split(' ')[0]+' '+bike.gh[i].toFixed(1)+'s'}if(rd&&!rd.dead&&!rd.rag&&st==='play'){a='🪂 極限空中 '+rd.t.toFixed(1)+'s';if(rd.nf)a+='  翻滾×'+rd.nf;for(let i=0;i<4;i++)if(rd.hold[i]>.35)a+='  '+TN[i].split(' ')[0]}if(veh==='skate'&&st==='play'&&!rd){const o=bike.sk,nk=(sess?sess.kf:0)+(o.kf>0?Math.ceil(o.kf/TAU-1e-6):0),ns=(sess?sess.sv:0)+(o.sv>0?Math.ceil(o.sv/PI-1e-6):0);if(nk)a+='  '+kfName(nk);if(ns)a+='  '+svName(ns)}
+ $('eject').classList.toggle('dis',!canEj());$('air').textContent=a.trim();
  const left=4.5-(T-lastBank),bar=$('bar');if(chain>0&&left>0&&st==='play'){$('chain').textContent='連擊 ×'+(1+.5*(chain)).toFixed(1)+' 下次倍率';bar.style.opacity=1;$('bi').style.width=(left/4.5*100)+'%'}else{$('chain').textContent='';bar.style.opacity=0}
  const si=Math.floor(Math.max(0,b.x)/SEG);if((mode==='run'||mode==='sand')&&si!==lastSeg&&st==='play'){lastSeg=si;const S=SE[si%4];$('bn').textContent=S.n+'  '+S.en;$('bd').textContent=S.d;$('banner').style.opacity=1;setTimeout(()=>$('banner').style.opacity=0,3200)}}
 let lt=0,acc=0,TA=0;
