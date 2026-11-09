@@ -1,4 +1,4 @@
-Fun 2D motorcycle game featuring multiple gamemodes. Play it on https://codeywaffle.github.io/Ridex4ever/
+Fun 3D motorcycle game featuring multiple gamemodes. Play it on https://codeywaffle.github.io/Ridex4ever/ or https://ridex4ever.pages.dev/
 
 Feel free to give feedbacks or contribute.
 
