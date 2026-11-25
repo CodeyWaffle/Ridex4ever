@@ -6,4 +6,6 @@ Hard trick combos to try:
 
 1. Catching the bike midair then catching it again in the ground as a combo
 
-   Completitions: Myself(codeywaffle), "HandsomeBoyOcean"
+   Completitions: Myself(codeywaffle), "HandsomeBoyOcean”
+## Version Notes:
+    2.0: Languages, refined first person view, refined interface, and much more!
