@@ -8,4 +8,4 @@ Hard trick combos to try:
 
    Completitions: Myself(codeywaffle), "HandsomeBoyOcean”
 ## Version Notes:
-    2.0: Languages, refined first person view, refined interface, and much more!
+    3D 1.2: Languages, refined first person view, refined interface, and much more!
