@@ -9,3 +9,4 @@ Hard trick combos to try:
    Completitions: Myself(codeywaffle), "HandsomeBoyOcean”
 ## Version Notes:
     3D 1.2: Languages, refined first person view, refined interface, and much more!
+    3D 1.3/1.3a: brought the trees back and fixed nitro positions.
