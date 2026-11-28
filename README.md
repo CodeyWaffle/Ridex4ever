@@ -13,7 +13,7 @@ Hard trick combos to try:
 
    Completitions: Myself(codeywaffle), "HandsomeBoyOcean”
 ## Version Notes:
-   3D 1.3/1.3a/1.3b: brought the trees back and fixed nitro positions. Added optional tutorial.
+   3D 1.3/1.3x: brought the trees back and fixed nitro positions. Added optional tutorial, and better computer experience.
    
    3D 1.2: Languages, refined first person view, refined interface, and much more! (removed 2D)
    
